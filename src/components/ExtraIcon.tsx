@@ -22,7 +22,7 @@ const ExtraIcon: React.FC<ExtraIconProps> = ({ extraName, iconClass, color }) =>
   const icon = iconClass || defaultIcons[extraName] || 'bi bi-star';
   const colorClass = color || defaultColors[extraName] || 'text-secondary';
   return (
-    <span className={`mx-1 ${colorClass}`} title={extraName} aria-label={extraName} style={{ fontSize: '1.2em' }}>
+    <span className={`mx-1 ${colorClass}`} title={extraName} aria-label={extraName} style={{ fontSize: '1.5em' }}>
       <i className={icon} aria-hidden="true"></i>
     </span>
   );

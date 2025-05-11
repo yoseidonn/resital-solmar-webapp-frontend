@@ -1,56 +1,69 @@
 import React, { useEffect, useState } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { fetchCaretakers, fetchVillas } from '../services/api';
-import CaretakerListTable from '../components/CaretakerListTable';
 import SummaryCard from '../components/SummaryCard';
-import { Modal, Button, Form, Row, Col, Accordion } from 'react-bootstrap';
+import EntityList from '../components/EntityList';
+import type { CareTaker, Villa } from '../services/models';
+import * as careTakerService from '../services/careTakerService';
+import * as villaService from '../services/villaService';
+import { Modal, Button, Form } from 'react-bootstrap';
+import BadgeRow from '../components/BadgeRow';
+import ExtraIcon from '../components/ExtraIcon';
 
 const defaultExtras = ['Pool Heating', 'Complimentary Cot', 'Welcome Pack'];
 
 const CareTakers: React.FC = () => {
-  const [caretakers, setCaretakers] = useState<any[]>([]);
-  const [villas, setVillas] = useState<any[]>([]);
+  const [villas, setVillas] = useState<Villa[]>([]);
+  const [caretakers, setCaretakers] = useState<CareTaker[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [formValues, setFormValues] = useState<any>({
-    id: '',
+  const [formValues, setFormValues] = useState<CareTaker>({
+    id: 0,
     name: '',
     phone_number: '',
     assigned_villas: {},
     rules: [],
   });
-  const [expandedVilla, setExpandedVilla] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [caretakerToDelete, setCaretakerToDelete] = useState<CareTaker | null>(null);
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      const [caretakersData, villasData] = await Promise.all([
-        fetchCaretakers(),
-        fetchVillas(),
-      ]);
-      setCaretakers(caretakersData);
-      setVillas(villasData);
-      setLoading(false);
-    }
     loadData();
   }, []);
 
+  const loadData = async () => {
+    setLoading(true);
+    const careTakersData = await careTakerService.getCareTakers();
+    const villasData = await villaService.getVillas();
+    setCaretakers(careTakersData);
+    setVillas(villasData);
+    setLoading(false);
+  };
+
   const handleAdd = () => {
     setIsEditing(false);
-    setFormValues({ id: '', name: '', phone_number: '', assigned_villas: {}, rules: [] });
+    setFormValues({ id: 0, name: '', phone_number: '', assigned_villas: {}, rules: [] });
     setShowModal(true);
   };
 
-  const handleEdit = (caretaker: any) => {
+  const handleEdit = (caretaker: CareTaker) => {
     setIsEditing(true);
     setFormValues({ ...caretaker });
     setShowModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    // TODO: Implement delete logic
-    alert('Delete caretaker ' + id);
+  const handleDelete = (caretaker: CareTaker) => {
+    setCaretakerToDelete(caretaker);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (caretakerToDelete) {
+      await careTakerService.deleteCareTaker(caretakerToDelete.id);
+      setCaretakers(caretakers.filter(c => c.id !== caretakerToDelete.id));
+      setShowDeleteConfirm(false);
+      setCaretakerToDelete(null);
+    }
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,31 +71,32 @@ const CareTakers: React.FC = () => {
     setFormValues((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  const handleVillaToggle = (villaName: string) => {
+  const handleExtraToggle = (villaId: string | number, extra: string) => {
     setFormValues((prev: any) => {
       const assigned = { ...prev.assigned_villas };
-      if (assigned[villaName]) {
-        delete assigned[villaName];
-      } else {
-        assigned[villaName] = [];
-      }
-      return { ...prev, assigned_villas: assigned };
-    });
-  };
-
-  const handleExtraToggle = (villaName: string, extra: string) => {
-    setFormValues((prev: any) => {
-      const assigned = { ...prev.assigned_villas };
-      let extras: string[] = Array.isArray(assigned[villaName]) ? [...assigned[villaName]] : [];
+      let extras: string[] = Array.isArray(assigned[villaId]) ? [...assigned[villaId]] : [];
       if (extras.includes(extra)) {
         extras = extras.filter(e => e !== extra);
       } else {
         extras.push(extra);
       }
-      assigned[villaName] = extras;
+      assigned[villaId] = extras;
       return { ...prev, assigned_villas: assigned };
     });
   };
+
+  const handleVillaToggle = (villa: Villa) => {
+    setFormValues((prev: any) => {
+      const assigned = { ...prev.assigned_villas };
+      if (assigned[villa.id]) {
+        delete assigned[villa.id];
+      } else {
+        assigned[villa.id] = [];
+      }
+      return { ...prev, assigned_villas: assigned };
+    });
+  };
+  
 
   const handleRuleToggle = (rule: string) => {
     setFormValues((prev: any) => {
@@ -97,21 +111,64 @@ const CareTakers: React.FC = () => {
   };
 
   const handleModalClose = () => setShowModal(false);
-  const handleModalSave = () => {
-    // TODO: Implement save logic
+  const handleModalSave = async () => {
+    // TODO: Implement save logic (add/edit)
+    // For now, just close modal and reload data
     setShowModal(false);
-  };
-
-  const handleExpandVilla = (villaName: string) => {
-    setExpandedVilla((prev) => (prev === villaName ? null : villaName));
+    await loadData();
   };
 
   return (
     <div className="container-fluid">
       <div className="row justify-content-center">
         <div className="col-12 col-md-10 col-lg-8">
-          <SummaryCard title="Care Takers" icon="bi-people" count={caretakers.length} />
-          <CaretakerListTable caretakers={caretakers} handleEdit={handleEdit} handleDelete={handleDelete} handleAdd={handleAdd} />
+          <EntityList
+            items={caretakers}
+            headers={["Name", "Phone", "Villas", "Rules", "Actions"]}
+            renderItem={(caretaker) => [
+              // Name
+              <span className="fw-medium">{caretaker.name}</span>,
+              // Phone
+              <span>{caretaker.phone_number}</span>,
+              // Villas + extras
+              <span>
+                {Object.entries(caretaker.assigned_villas).map(([villaId, extras]) => (
+                  <BadgeRow key={villaId} className="badge bg-info mb-1">
+                    <span className="text-dark me-2" style={{ fontSize: '1.2em' }}>{villas.find(v => v.id === Number(villaId))?.villa_name}</span>
+                    {extras.map((extra) => (
+                      <ExtraIcon key={villaId + extra} extraName={extra}/>
+                    ))}
+                  </BadgeRow>
+                ))}
+              </span>,
+              // Rules
+              <span>
+                {caretaker.rules.length > 0 ? (
+                  caretaker.rules.map((rule) => (
+                    <ExtraIcon key={rule} extraName={rule} />
+                  ))
+                ) : (
+                  <span className="text-muted">No rules</span>
+                )}
+              </span>,
+              // Actions
+              <span className="d-flex gap-2">
+                <button className="btn btn-outline-primary btn-sm" onClick={() => handleEdit(caretaker)}>
+                  <i className="bi bi-pencil"></i>
+                </button>
+                <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete(caretaker)}>
+                  <i className="bi bi-trash"></i>
+                </button>
+              </span>
+            ]}
+          >
+            <SummaryCard title="Care Takers" icon="bi-people" count={caretakers.length} />
+            <div className="mb-3 text-end">
+              <Button variant="primary" onClick={handleAdd}>
+                <i className="bi bi-plus-lg me-1"></i> Add Caretaker
+              </Button>
+            </div>
+          </EntityList>
           {loading && <LoadingSpinner />}
         </div>
       </div>
@@ -123,40 +180,42 @@ const CareTakers: React.FC = () => {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Name</Form.Label>
-              <Form.Control name="name" value={formValues.name} onChange={handleFormChange} />
+              <Form.Control name="name" value={formValues.name || ''} onChange={handleFormChange} />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Phone Number</Form.Label>
-              <Form.Control name="phone_number" value={formValues.phone_number} onChange={handleFormChange} />
+              <Form.Control name="phone_number" value={formValues.phone_number || ''} onChange={handleFormChange} />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Assign Villas</Form.Label>
               <div>
                 <ul className="list-group">
-                  {villas.map((villa: any) => (
-                    <li key={villa.villa_name} className="list-group-item px-2 py-1">
-                      <Form.Check
-                        type="checkbox"
-                        label={villa.villa_name}
-                        checked={!!formValues.assigned_villas[villa.villa_name]}
-                        onChange={() => handleVillaToggle(villa.villa_name)}
-                      />
-                      {formValues.assigned_villas[villa.villa_name] && (
-                        <ul className="list-group mt-2 ms-4">
-                          {defaultExtras.map((extra) => (
-                            <li key={extra} className="list-group-item px-2 py-1">
+                  {villas.map((villa) => {
+                    const isChecked = Boolean(formValues.assigned_villas[villa.id]);
+                    return (
+                      <li key={villa.id} className="list-group-item">
+                        <Form.Check
+                          type="checkbox"
+                          label={villa.villa_name}
+                          checked={isChecked}
+                          onChange={() => handleVillaToggle(villa)}
+                        />
+                        {isChecked && (
+                          <div className="ms-4 mt-2">
+                            {defaultExtras.map((extra) => (
                               <Form.Check
+                                key={`${villa.id}-${extra}`}
                                 type="checkbox"
                                 label={extra}
-                                checked={Array.isArray(formValues.assigned_villas[villa.villa_name]) && formValues.assigned_villas[villa.villa_name].includes(extra)}
-                                onChange={() => handleExtraToggle(villa.villa_name, extra)}
+                                checked={formValues.assigned_villas[villa.id]?.includes(extra) || false}
+                                onChange={() => handleExtraToggle(villa.id, extra)}
                               />
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </Form.Group>
@@ -168,7 +227,7 @@ const CareTakers: React.FC = () => {
                     key={rule}
                     type="checkbox"
                     label={rule}
-                    checked={Array.isArray(formValues.rules) && formValues.rules.includes(rule)}
+                    checked={formValues.rules?.includes(rule) || false}
                     onChange={() => handleRuleToggle(rule)}
                   />
                 ))}
@@ -179,6 +238,18 @@ const CareTakers: React.FC = () => {
         <Modal.Footer>
           <Button variant="secondary" onClick={handleModalClose}>Cancel</Button>
           <Button variant="primary" onClick={handleModalSave}>{isEditing ? 'Save Changes' : 'Add Caretaker'}</Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal show={showDeleteConfirm} onHide={() => setShowDeleteConfirm(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this caretaker: {caretakerToDelete?.name}?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+          <Button variant="danger" onClick={handleDeleteConfirm}>Delete</Button>
         </Modal.Footer>
       </Modal>
     </div>

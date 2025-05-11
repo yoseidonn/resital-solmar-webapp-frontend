@@ -25,15 +25,15 @@ const Sidebar: React.FC<SidebarProps> = ({ children, tabs }) => {
             </Link>
             <ul className="nav nav-pills flex-column mb-sm-auto mb-0 align-items-center align-items-sm-start" id="menu">
               {tabs.map((tab) => (
-                <li className="nav-item" key={tab.to}>
+                <li className="nav-item" key={tab.to} style={{ width: '100%' }}>
                   <Link
                     to={tab.to}
                     className={`nav-link align-middle px-0 text-white${location.pathname === tab.to ? ' active bg-primary' : ''}`}
                   >
-                    {tab.iconClass && <i className={`fs-4 ${tab.iconClass}`}></i>}
-                    <span className="ms-1 d-none d-sm-inline">{tab.label}</span>
-                </Link>
-              </li>
+                    {tab.iconClass && <i className={`fs-4 ${tab.iconClass}`} style={{ verticalAlign: 'middle' }}></i>}
+                    <span className="ms-1 d-none d-sm-inline" style={{ verticalAlign: 'middle' }}>{tab.label}</span>
+                  </Link>
+                </li>
               ))}
             </ul>
           </div>
