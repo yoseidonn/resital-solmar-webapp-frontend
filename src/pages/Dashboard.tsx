@@ -6,7 +6,9 @@ import { getVillas } from '../services/villaService';
 import { getAPISReportFiles } from '../services/apisReportFileService';
 import { getResortReportFiles } from '../services/resortReportFileService';
 import { getAPISReportOutputs } from '../services/apisReportOutputService';
-import { getResortReportOutputs } from '../services/resortReportOutputService';
+import { getExtrasFilteredReservationOutputs } from '../services/extrasFilteredReservationOutputService';
+import { getCaretakerExtrasViewOutputs } from '../services/caretakerExtrasViewOutputService';
+import { uploadResortReportFile, createResortReportFile } from '../services/resortReportFileService';
 
 // Utility to format date as dd/MM/yy
 function formatDate(dateString?: string): string {
@@ -28,7 +30,8 @@ const Dashboard = () => {
     apisFiles: 0,
     resortFiles: 0,
     apisOutputs: 0,
-    resortOutputs: 0,
+    extrasOutputs: 0,
+    caretakerOutputs: 0,
   });
   const [recentFiles, setRecentFiles] = useState<any[]>([]);
   const [recentOutputs, setRecentOutputs] = useState<any[]>([]);
@@ -43,13 +46,14 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const [caretakers, villas, apisFiles, resortFiles, apisOutputs, resortOutputs] = await Promise.all([
+        const [caretakers, villas, apisFiles, resortFiles, apisOutputs, extrasOutputs, caretakerOutputs] = await Promise.all([
           getCareTakers(),
           getVillas(),
           getAPISReportFiles(),
           getResortReportFiles(),
           getAPISReportOutputs(),
-          getResortReportOutputs(),
+          getExtrasFilteredReservationOutputs(),
+          getCaretakerExtrasViewOutputs(),
         ]);
         setCounts({
           caretakers: caretakers.length,
@@ -57,15 +61,21 @@ const Dashboard = () => {
           apisFiles: apisFiles.length,
           resortFiles: resortFiles.length,
           apisOutputs: apisOutputs.length,
-          resortOutputs: resortOutputs.length,
+          extrasOutputs: extrasOutputs.length,
+          caretakerOutputs: caretakerOutputs.length,
         });
         setRecentFiles([
-          ...apisFiles.map(f => ({ ...f, type: 'APIS' })),
-          ...resortFiles.map(f => ({ ...f, type: 'Resort' })),
-        ].sort((a, b) => Date.parse(b.uploaded_at || b.date || '') - Date.parse(a.uploaded_at || a.date || '')).slice(0, 3));
+          ...apisFiles.map((f: { uploaded_at?: string; date?: string }) => ({ ...f, type: 'APIS' })),
+          ...resortFiles.map((f: { uploaded_at?: string; date?: string }) => ({ ...f, type: 'Resort' })),
+        ].sort((a, b) => {
+          const dateA = Date.parse(a.uploaded_at || a.date || '');
+          const dateB = Date.parse(b.uploaded_at || b.date || '');
+          return dateB - dateA;
+        }).slice(0, 3));
         setRecentOutputs([
-          ...apisOutputs.map(o => ({ ...o, type: 'APIS' })),
-          ...resortOutputs.map(o => ({ ...o, type: 'Resort' })),
+          ...apisOutputs.map((o: { created_at?: string }) => ({ ...o, type: 'APIS' })),
+          ...extrasOutputs.map((o: { created_at?: string }) => ({ ...o, type: 'ExtrasFilteredReservation' })),
+          ...caretakerOutputs.map((o: { created_at?: string }) => ({ ...o, type: 'CaretakerExtrasView' })),
         ].sort((a, b) => Date.parse(b.created_at || '') - Date.parse(a.created_at || '')).slice(0, 3));
       } catch (err: any) {
         setError('Failed to load dashboard data.');
@@ -88,12 +98,16 @@ const Dashboard = () => {
         const mod = await import('../services/apisReportFileService');
         uploadFn = (file: File) => mod.createAPISReportFile({ file });
       } else if (file.name.toLowerCase().includes('resort')) {
-        const mod = await import('../services/resortReportFileService');
-        uploadFn = (file: File) => mod.createResortReportFile({ file });
+        // Step 1: Upload the file
+        const uploadResult = await uploadResortReportFile(file);
+        // Step 2: Create the metadata
+        const dateStr = new Date(file.lastModified).toISOString().slice(0, 10);
+        await createResortReportFile({ name: file.name, date: dateStr, file: uploadResult.file });
+        uploadFn = null;
       } else {
         throw new Error('Unknown file type. Filename must include "apis" or "resort".');
       }
-      await uploadFn(file);
+      if (uploadFn) await uploadFn(file);
       setUploadSuccess('File uploaded successfully!');
       setLastFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -114,12 +128,14 @@ const Dashboard = () => {
         const mod = await import('../services/apisReportFileService');
         uploadFn = (file: File) => mod.createAPISReportFile({ file });
       } else if (lastFile.name.toLowerCase().includes('resort')) {
-        const mod = await import('../services/resortReportFileService');
-        uploadFn = (file: File) => mod.createResortReportFile({ file });
+        const uploadResult = await uploadResortReportFile(lastFile);
+        const dateStr = new Date(lastFile.lastModified).toISOString().slice(0, 10);
+        await createResortReportFile({ name: lastFile.name, date: dateStr, file: uploadResult.file });
+        uploadFn = null;
       } else {
         throw new Error('Unknown file type. Filename must include "apis" or "resort".');
       }
-      await uploadFn(lastFile);
+      if (uploadFn) await uploadFn(lastFile);
       setUploadSuccess('File uploaded successfully!');
       setLastFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -151,7 +167,10 @@ const Dashboard = () => {
               <SummaryCard title="APIS Outputs" icon="bi-file-earmark-bar-graph" count={counts.apisOutputs} />
             </div>
             <div className="col-md-3 col-6 mt-3">
-              <SummaryCard title="Resort Outputs" icon="bi-file-earmark-bar-graph-fill" count={counts.resortOutputs} />
+              <SummaryCard title="Extras Filtered Outputs" icon="bi-funnel" count={counts.extrasOutputs} />
+            </div>
+            <div className="col-md-3 col-6 mt-3">
+              <SummaryCard title="Caretaker View Outputs" icon="bi-person-lines-fill" count={counts.caretakerOutputs} />
             </div>
           </div>
           <div className="card mb-4">
@@ -194,7 +213,14 @@ const Dashboard = () => {
                   <ul className="list-group">
                     {recentOutputs.length === 0 ? <li className="list-group-item text-muted">No recent outputs</li> : recentOutputs.map((o: any) => (
                       <li key={o.id} className="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i className={o.type === 'APIS' ? 'bi bi-file-earmark-bar-graph text-success' : 'bi bi-file-earmark-bar-graph-fill text-info'}></i> {formatDate(o.created_at)}</span>
+                        <span>
+                          <i className={
+                            o.type === 'APIS' ? 'bi bi-file-earmark-bar-graph text-success' :
+                            o.type === 'ExtrasFilteredReservation' ? 'bi bi-funnel text-info' :
+                            o.type === 'CaretakerExtrasView' ? 'bi bi-person-lines-fill text-primary' :
+                            'bi bi-file-earmark-bar-graph-fill text-info'
+                          }></i> {formatDate(o.created_at)}
+                        </span>
                         <span className="badge bg-secondary">{o.type}</span>
                       </li>
                     ))}

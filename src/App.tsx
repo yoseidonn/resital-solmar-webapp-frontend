@@ -17,6 +17,7 @@ const sidebarTabs: SidebarTab[] = [
   { label: 'Dashboard', to: '/', iconClass: 'bi-speedometer2' },
   { label: 'Villas', to: '/villas', iconClass: 'bi-house' },
   { label: 'Care Takers', to: '/care-takers', iconClass: 'bi-people' },
+  { label: 'Generate Outputs', to: '/generate-outputs', iconClass: 'bi-file-earmark-plus' },
   { label: 'File History', to: '/file-history', iconClass: 'bi-clock-history' },
   { label: 'Output History', to: '/output-history', iconClass: 'bi-list-check' },
   { label: 'Backup & Recovery', to: '/backup-recovery', iconClass: 'bi-cloud-arrow-up' },

@@ -4,7 +4,6 @@ export interface CareTaker {
   name: string;
   phone_number: string;
   assigned_villas: Record<string, string[]>; // { [villaName]: string[] }
-  rules: string[];
 }
 
 // Villa
@@ -97,4 +96,25 @@ export interface AdvancedPassengerInformation {
   nationality: string;
   villa_id?: number | string | null;
   apis_report_file?: number | string | null;
+}
+
+export interface CaretakerExtrasViewOutput {
+  id: number | string;
+  resort_report_file: number | string;
+  fileName: string;
+  generatedDate: string;
+  content: any;
+  file_path?: string;
+  created_at: string;
+}
+
+export interface ExtrasFilteredReservationOutput {
+  id: number | string;
+  resort_report_file: number | string;
+  file_name: string;
+  generated_date: string;
+  applied_filters?: Record<string, string[]>;
+  grouped_reservations?: Record<string, any[]>;
+  file_path?: string;
+  created_at: string;
 } 
