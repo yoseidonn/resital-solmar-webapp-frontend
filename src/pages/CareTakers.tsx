@@ -22,7 +22,6 @@ const CareTakers: React.FC = () => {
     name: '',
     phone_number: '',
     assigned_villas: {},
-    rules: [],
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [caretakerToDelete, setCaretakerToDelete] = useState<CareTaker | null>(null);
@@ -42,7 +41,7 @@ const CareTakers: React.FC = () => {
 
   const handleAdd = () => {
     setIsEditing(false);
-    setFormValues({ id: 0, name: '', phone_number: '', assigned_villas: {}, rules: [] });
+    setFormValues({ id: 0, name: '', phone_number: '', assigned_villas: {} });
     setShowModal(true);
   };
 
@@ -96,19 +95,6 @@ const CareTakers: React.FC = () => {
       return { ...prev, assigned_villas: assigned };
     });
   };
-  
-
-  const handleRuleToggle = (rule: string) => {
-    setFormValues((prev: any) => {
-      let rules: string[] = Array.isArray(prev.rules) ? [...prev.rules] : [];
-      if (rules.includes(rule)) {
-        rules = rules.filter(r => r !== rule);
-      } else {
-        rules.push(rule);
-      }
-      return { ...prev, rules };
-    });
-  };
 
   const handleModalClose = () => setShowModal(false);
   const handleModalSave = async () => {
@@ -124,7 +110,7 @@ const CareTakers: React.FC = () => {
         <div className="col-12 col-md-10 col-lg-8">
           <EntityList
             items={caretakers}
-            headers={["Name", "Phone", "Villas", "Rules", "Actions"]}
+            headers={["Name", "Phone", "Villas", "Actions"]}
             renderItem={(caretaker) => [
               // Name
               <span className="fw-medium">{caretaker.name}</span>,
@@ -140,16 +126,6 @@ const CareTakers: React.FC = () => {
                     ))}
                   </BadgeRow>
                 ))}
-              </span>,
-              // Rules
-              <span>
-                {caretaker.rules.length > 0 ? (
-                  caretaker.rules.map((rule) => (
-                    <ExtraIcon key={rule} extraName={rule} />
-                  ))
-                ) : (
-                  <span className="text-muted">No rules</span>
-                )}
               </span>,
               // Actions
               <span className="d-flex gap-2">
@@ -217,20 +193,6 @@ const CareTakers: React.FC = () => {
                     );
                   })}
                 </ul>
-              </div>
-            </Form.Group>
-            <Form.Group className="mb-3 mt-3">
-              <Form.Label>Rules (Filters)</Form.Label>
-              <div className="d-flex gap-2 flex-wrap">
-                {defaultExtras.map((rule) => (
-                  <Form.Check
-                    key={rule}
-                    type="checkbox"
-                    label={rule}
-                    checked={formValues.rules?.includes(rule) || false}
-                    onChange={() => handleRuleToggle(rule)}
-                  />
-                ))}
               </div>
             </Form.Group>
           </Form>

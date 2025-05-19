@@ -1,4 +1,4 @@
-const API = '/api';
+const API = 'http://localhost:8000';
 
 export async function getResortReports() {
   const res = await fetch(`${API}/resort-reports/`);
