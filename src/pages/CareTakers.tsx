@@ -39,29 +39,43 @@ const CareTakers: React.FC = () => {
     setLoading(false);
   };
 
-  const handleAdd = () => {
+  const openAddModal = () => {
     setIsEditing(false);
-    setFormValues({ id: 0, name: '', phone_number: '', assigned_villas: {} });
+    setFormValues({
+      id: 0,
+      name: '',
+      phone_number: '',
+      assigned_villas: {},
+    });
     setShowModal(true);
   };
 
-  const handleEdit = (caretaker: CareTaker) => {
+  const openEditModal = async (caretaker: CareTaker) => {
+    const caretakerData = await careTakerService.getCareTaker(caretaker.id);
+    if (!caretakerData) {
+      return;
+    }
     setIsEditing(true);
-    setFormValues({ ...caretaker });
+    setFormValues({ ...caretakerData });
     setShowModal(true);
   };
 
-  const handleDelete = (caretaker: CareTaker) => {
+  const openDeleteModal = (caretaker: CareTaker) => {
+    if (!caretaker) {
+      return;
+    }
     setCaretakerToDelete(caretaker);
     setShowDeleteConfirm(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (caretakerToDelete) {
-      await careTakerService.deleteCareTaker(caretakerToDelete.id);
-      setCaretakers(caretakers.filter(c => c.id !== caretakerToDelete.id));
-      setShowDeleteConfirm(false);
-      setCaretakerToDelete(null);
+      const response = await careTakerService.deleteCareTaker(caretakerToDelete.id);
+      if (response.success) {
+        setCaretakers(caretakers.filter(c => c.id !== caretakerToDelete.id));
+        setShowDeleteConfirm(false);
+        setCaretakerToDelete(null);
+      }
     }
   };
 
@@ -98,8 +112,11 @@ const CareTakers: React.FC = () => {
 
   const handleModalClose = () => setShowModal(false);
   const handleModalSave = async () => {
-    // TODO: Implement save logic (add/edit)
-    // For now, just close modal and reload data
+    if (isEditing) {
+      await careTakerService.updateCareTaker(formValues.id, formValues);
+    } else {
+      await careTakerService.createCareTaker(formValues);
+    }
     setShowModal(false);
     await loadData();
   };
@@ -129,10 +146,10 @@ const CareTakers: React.FC = () => {
               </span>,
               // Actions
               <span className="d-flex gap-2">
-                <button className="btn btn-outline-primary btn-sm" onClick={() => handleEdit(caretaker)}>
+                <button className="btn btn-outline-primary btn-sm" onClick={() => openEditModal(caretaker)}>
                   <i className="bi bi-pencil"></i>
                 </button>
-                <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete(caretaker)}>
+                <button className="btn btn-outline-danger btn-sm" onClick={() => openDeleteModal(caretaker)}>
                   <i className="bi bi-trash"></i>
                 </button>
               </span>
@@ -140,7 +157,7 @@ const CareTakers: React.FC = () => {
           >
             <SummaryCard title="Care Takers" icon="bi-people" count={caretakers.length} />
             <div className="mb-3 text-end">
-              <Button variant="primary" onClick={handleAdd}>
+              <Button variant="primary" onClick={openAddModal}>
                 <i className="bi bi-plus-lg me-1"></i> Add Caretaker
               </Button>
             </div>
